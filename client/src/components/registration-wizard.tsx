@@ -16,10 +16,10 @@ import { doc, setDoc } from "firebase/firestore";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { 
-  multiFactor, 
+import {
+  multiFactor,
   PhoneAuthProvider,
-  PhoneMultiFactorGenerator 
+  PhoneMultiFactorGenerator
 } from "firebase/auth";
 
 interface RegistrationWizardProps {
@@ -72,19 +72,34 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
         throw new Error("No authenticated user found");
       }
 
+      // Ensure phone number is in E.164 format
+      let formattedPhone = phoneNumber;
+      if (!phoneNumber.startsWith('+')) {
+        formattedPhone = `+${phoneNumber}`;
+      }
+
+      // Validate phone number format
+      const phoneRegex = /^\+[1-9]\d{1,14}$/;
+      if (!phoneRegex.test(formattedPhone)) {
+        throw new Error("Please enter a valid phone number in international format (e.g., +1234567890)");
+      }
+
       const multiFactorSession = await multiFactor(user).getSession();
       const phoneProvider = new PhoneAuthProvider(auth);
       const verId = await phoneProvider.verifyPhoneNumber({
-        phoneNumber,
+        phoneNumber: formattedPhone,
         session: multiFactorSession
-      });
+      }, auth);
+
       setVerificationId(verId);
+      setPhoneNumber(formattedPhone);
 
       toast({
         title: "Verification Code Sent",
         description: "Please check your phone for the verification code."
       });
     } catch (error: any) {
+      console.error("MFA Setup Error:", error);
       toast({
         title: "MFA Setup Error",
         description: error.message,
@@ -103,9 +118,14 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
         throw new Error("No authenticated user found");
       }
 
+      // Validate verification code format
+      if (!/^\d{6}$/.test(verificationCode)) {
+        throw new Error("Please enter a valid 6-digit verification code");
+      }
+
       const cred = PhoneAuthProvider.credential(verificationId, verificationCode);
       const multiFactorAssertion = PhoneMultiFactorGenerator.assertion(cred);
-      await multiFactor(user).enroll(multiFactorAssertion, "Phone Number");
+      await multiFactor(user).enroll(multiFactorAssertion, phoneNumber);
 
       toast({
         title: "MFA Enabled",
@@ -116,6 +136,7 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
       setStep(4);
       setProgress(100);
     } catch (error: any) {
+      console.error("Verification Error:", error);
       toast({
         title: "Verification Error",
         description: error.message,
@@ -225,8 +246,8 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
                 />
 
                 <div className="flex justify-end mt-6">
-                  <Button 
-                    type="button" 
+                  <Button
+                    type="button"
                     onClick={() => handleNextStep(2)}
                   >
                     Next
@@ -244,8 +265,8 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
                     <FormItem>
                       <FormLabel>Tell us about your hiring needs</FormLabel>
                       <FormControl>
-                        <Textarea 
-                          {...field} 
+                        <Textarea
+                          {...field}
                           placeholder="What kind of talent are you looking for? What are your company's goals?"
                           className="h-32"
                         />
@@ -256,14 +277,14 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
                 />
 
                 <div className="flex gap-4 justify-end mt-6">
-                  <Button 
-                    type="button" 
+                  <Button
+                    type="button"
                     variant="outline"
                     onClick={() => handleNextStep(1)}
                   >
                     Back
                   </Button>
-                  <Button 
+                  <Button
                     type="button"
                     onClick={() => handleNextStep(3)}
                   >
@@ -300,7 +321,7 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
                             value={phoneNumber}
                             onChange={(e) => setPhoneNumber(e.target.value)}
                           />
-                          <Button 
+                          <Button
                             onClick={setupMfa}
                             disabled={isSendingCode || !phoneNumber}
                           >
@@ -319,7 +340,7 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
                               value={verificationCode}
                               onChange={(e) => setVerificationCode(e.target.value)}
                             />
-                            <Button 
+                            <Button
                               onClick={verifyMfaCode}
                               disabled={isVerifyingCode || !verificationCode}
                             >
@@ -333,14 +354,14 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
                 </div>
 
                 <div className="flex gap-4 justify-end mt-6">
-                  <Button 
-                    type="button" 
+                  <Button
+                    type="button"
                     variant="outline"
                     onClick={() => handleNextStep(2)}
                   >
                     Back
                   </Button>
-                  <Button 
+                  <Button
                     type="button"
                     onClick={() => handleNextStep(4)}
                     disabled={enableMfa && !verificationId}
@@ -373,8 +394,8 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
                 </div>
 
                 <div className="flex gap-4 justify-end mt-6">
-                  <Button 
-                    type="button" 
+                  <Button
+                    type="button"
                     variant="outline"
                     onClick={() => handleNextStep(3)}
                   >
