@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -19,7 +19,8 @@ import { Label } from "@/components/ui/label";
 import {
   multiFactor,
   PhoneAuthProvider,
-  PhoneMultiFactorGenerator
+  PhoneMultiFactorGenerator,
+  RecaptchaVerifier
 } from "firebase/auth";
 
 interface RegistrationWizardProps {
@@ -37,7 +38,24 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
   const [verificationId, setVerificationId] = useState("");
   const [isSendingCode, setIsSendingCode] = useState(false);
   const [isVerifyingCode, setIsVerifyingCode] = useState(false);
+  const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Initialize RecaptchaVerifier when component mounts
+    const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+      size: 'invisible',
+      callback: () => {
+        // Callback is optional
+      }
+    });
+    setRecaptchaVerifier(verifier);
+
+    // Cleanup RecaptchaVerifier when component unmounts
+    return () => {
+      verifier.clear();
+    };
+  }, []);
 
   const form = useForm({
     resolver: zodResolver(insertUserSchema),
@@ -65,6 +83,15 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
   };
 
   const setupMfa = async () => {
+    if (!recaptchaVerifier) {
+      toast({
+        title: "Error",
+        description: "Please wait for the security verification to initialize.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       setIsSendingCode(true);
       const user = auth.currentUser;
@@ -86,10 +113,13 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
 
       const multiFactorSession = await multiFactor(user).getSession();
       const phoneProvider = new PhoneAuthProvider(auth);
-      const verId = await phoneProvider.verifyPhoneNumber({
-        phoneNumber: formattedPhone,
-        session: multiFactorSession
-      }, auth);
+      const verId = await phoneProvider.verifyPhoneNumber(
+        {
+          phoneNumber: formattedPhone,
+          session: multiFactorSession
+        },
+        recaptchaVerifier
+      );
 
       setVerificationId(verId);
       setPhoneNumber(formattedPhone);
@@ -199,6 +229,9 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
         <Progress value={progress} className="mt-2" />
       </CardHeader>
       <CardContent>
+        {/* Hidden recaptcha container */}
+        <div id="recaptcha-container"></div>
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {step === 1 && (
