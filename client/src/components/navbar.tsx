@@ -18,11 +18,11 @@ export function Navbar() {
   return (
     <nav className="border-b bg-background">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex justify-between items-center h-16">
           <div className="flex-shrink-0">
-            <Link href="/" className="flex items-center">
+            <Link href="/">
               <img 
-                src="attached_assets/AIRecruitHub-Logo_v2_1.png" 
+                src="/AIRecruitHub-Logo_v2_1.png" 
                 alt="AIRecruitHub Logo" 
                 className="h-8 w-auto object-contain"
               />
@@ -36,14 +36,10 @@ export function Navbar() {
             {user ? (
               <>
                 <Link href="/jobs">
-                  <a className={`hover:text-[#00C0F1] transition-colors ${location === '/jobs' ? 'text-[#0057B8]' : ''}`}>
-                    Jobs
-                  </a>
+                  Jobs
                 </Link>
                 <Link href="/profile">
-                  <a className={`hover:text-[#00C0F1] transition-colors ${location === '/profile' ? 'text-[#0057B8]' : ''}`}>
-                    Profile
-                  </a>
+                  Profile
                 </Link>
                 <Button 
                   variant="outline" 
