@@ -6,14 +6,20 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Building2, Users } from "lucide-react";
+import { Building2, Users, Shield } from "lucide-react";
 import { insertUserSchema } from "@shared/schema";
 import type { User } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { doc, setDoc } from "firebase/firestore";
 import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
+import { 
+  multiFactor, 
+  PhoneAuthProvider,
+  PhoneMultiFactorGenerator 
+} from "firebase/auth";
 
 interface RegistrationWizardProps {
   firebaseUid: string;
@@ -23,7 +29,11 @@ interface RegistrationWizardProps {
 
 export function RegistrationWizard({ firebaseUid, email, onComplete }: RegistrationWizardProps) {
   const [step, setStep] = useState(1);
-  const [progress, setProgress] = useState(33);
+  const [progress, setProgress] = useState(25);
+  const [enableMfa, setEnableMfa] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationId, setVerificationId] = useState("");
   const { toast } = useToast();
 
   const form = useForm({
@@ -40,14 +50,66 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
 
   const saveProgress = async (data: any) => {
     try {
-      // Save progress to Firestore
       await setDoc(doc(db, "registrationProgress", firebaseUid), {
         ...data,
         lastStep: step,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        enableMfa
       });
     } catch (error) {
       console.error("Error saving progress:", error);
+    }
+  };
+
+  const setupMfa = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const multiFactorSession = await multiFactor(user).getSession();
+      const phoneProvider = new PhoneAuthProvider(auth);
+      const verificationId = await phoneProvider.verifyPhoneNumber({
+        phoneNumber,
+        session: multiFactorSession
+      });
+      setVerificationId(verificationId);
+
+      toast({
+        title: "Verification Code Sent",
+        description: "Please check your phone for the verification code."
+      });
+    } catch (error: any) {
+      toast({
+        title: "MFA Setup Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const verifyMfaCode = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const cred = PhoneAuthProvider.credential(verificationId, verificationCode);
+      const multiFactorAssertion = PhoneMultiFactorGenerator.assertion(cred);
+      await multiFactor(user).enroll(multiFactorAssertion, "Phone Number");
+
+      toast({
+        title: "MFA Enabled",
+        description: "Multi-factor authentication has been set up successfully."
+      });
+
+      // Move to final step after MFA setup
+      setStep(4);
+      setProgress(100);
+    } catch (error: any) {
+      toast({
+        title: "Verification Error",
+        description: error.message,
+        variant: "destructive"
+      });
     }
   };
 
@@ -55,12 +117,20 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
     try {
       const response = await apiRequest("POST", "/api/auth/register", {
         ...data,
-        firebaseUid
+        firebaseUid,
+        mfaEnabled: enableMfa
       });
       const user = await response.json();
 
       // Clear saved progress after successful registration
       await setDoc(doc(db, "registrationProgress", firebaseUid), { completed: true });
+
+      // Log registration completion for analytics
+      await setDoc(doc(db, "analytics", `registration_${firebaseUid}`), {
+        completedAt: new Date().toISOString(),
+        steps: step,
+        mfaEnabled: enableMfa
+      });
 
       onComplete(user);
     } catch (error: any) {
@@ -132,7 +202,7 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
                     onClick={() => {
                       saveProgress(form.getValues());
                       setStep(2);
-                      setProgress(66);
+                      setProgress(50);
                     }}
                   >
                     Next
@@ -167,7 +237,7 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
                     variant="outline"
                     onClick={() => {
                       setStep(1);
-                      setProgress(33);
+                      setProgress(25);
                     }}
                   >
                     Back
@@ -177,7 +247,7 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
                     onClick={() => {
                       saveProgress(form.getValues());
                       setStep(3);
-                      setProgress(100);
+                      setProgress(75);
                     }}
                   >
                     Next
@@ -188,6 +258,91 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
 
             {step === 3 && (
               <>
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <h2 className="text-lg font-semibold">Enhanced Security</h2>
+                      <p className="text-sm text-muted-foreground">
+                        Enable multi-factor authentication for additional account security
+                      </p>
+                    </div>
+                    <Switch
+                      checked={enableMfa}
+                      onCheckedChange={setEnableMfa}
+                    />
+                  </div>
+
+                  {enableMfa && (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Phone Number</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            type="tel"
+                            placeholder="+1234567890"
+                            value={phoneNumber}
+                            onChange={(e) => setPhoneNumber(e.target.value)}
+                          />
+                          <Button onClick={setupMfa}>
+                            Send Code
+                          </Button>
+                        </div>
+                      </div>
+
+                      {verificationId && (
+                        <div className="space-y-2">
+                          <Label>Verification Code</Label>
+                          <div className="flex gap-2">
+                            <Input
+                              type="text"
+                              placeholder="Enter code"
+                              value={verificationCode}
+                              onChange={(e) => setVerificationCode(e.target.value)}
+                            />
+                            <Button onClick={verifyMfaCode}>
+                              Verify
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-4 justify-end mt-6">
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    onClick={() => {
+                      setStep(2);
+                      setProgress(50);
+                    }}
+                  >
+                    Back
+                  </Button>
+                  <Button 
+                    type="button"
+                    onClick={() => {
+                      if (enableMfa && !verificationId) {
+                        toast({
+                          title: "MFA Required",
+                          description: "Please complete MFA setup before proceeding.",
+                          variant: "destructive"
+                        });
+                        return;
+                      }
+                      setStep(4);
+                      setProgress(100);
+                    }}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </>
+            )}
+
+            {step === 4 && (
+              <>
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">Review Your Information</h3>
                   <div className="space-y-2">
@@ -196,6 +351,7 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
                     <p><strong>Title:</strong> {form.getValues("title")}</p>
                     <p><strong>Hiring Needs:</strong></p>
                     <p className="whitespace-pre-wrap">{form.getValues("bio")}</p>
+                    <p><strong>Security:</strong> {enableMfa ? "Multi-factor authentication enabled" : "Standard security"}</p>
                   </div>
 
                   <div className="pt-4">
@@ -211,8 +367,8 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
                     type="button" 
                     variant="outline"
                     onClick={() => {
-                      setStep(2);
-                      setProgress(66);
+                      setStep(3);
+                      setProgress(75);
                     }}
                   >
                     Back
