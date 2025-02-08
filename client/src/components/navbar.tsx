@@ -19,23 +19,44 @@ export function Navbar() {
     <nav className="border-b bg-background">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link href="/">
-          <a className="text-2xl font-bold text-primary">AIRecruitHub</a>
+          <div className="flex items-center gap-2">
+            <img 
+              src="/AIRecruitHub-Logo_v2_1.png" 
+              alt="AIRecruitHub Logo" 
+              className="h-8 w-auto"
+            />
+            <span className="text-2xl font-bold bg-gradient-to-r from-[#0057B8] to-[#00C0F1] bg-clip-text text-transparent">
+              AIRecruitHub
+            </span>
+          </div>
         </Link>
 
         <div className="flex items-center gap-6">
           {user ? (
             <>
               <Link href="/jobs">
-                <a className={`${location === '/jobs' ? 'text-primary' : ''}`}>Jobs</a>
+                <a className={`hover:text-[#00C0F1] transition-colors ${location === '/jobs' ? 'text-[#0057B8]' : ''}`}>
+                  Jobs
+                </a>
               </Link>
               <Link href="/profile">
-                <a className={`${location === '/profile' ? 'text-primary' : ''}`}>Profile</a>
+                <a className={`hover:text-[#00C0F1] transition-colors ${location === '/profile' ? 'text-[#0057B8]' : ''}`}>
+                  Profile
+                </a>
               </Link>
-              <Button variant="outline" onClick={handleLogout}>Logout</Button>
+              <Button 
+                variant="outline" 
+                onClick={handleLogout}
+                className="hover:border-[#00C0F1] hover:text-[#00C0F1]"
+              >
+                Logout
+              </Button>
             </>
           ) : (
             <Link href="/auth">
-              <Button>Sign In</Button>
+              <Button className="bg-gradient-to-r from-[#0057B8] to-[#00C0F1] hover:opacity-90">
+                Sign In
+              </Button>
             </Link>
           )}
         </div>
