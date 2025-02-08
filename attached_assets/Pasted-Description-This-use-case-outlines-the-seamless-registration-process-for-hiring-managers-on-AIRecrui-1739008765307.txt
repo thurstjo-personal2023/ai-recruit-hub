@@ -1,0 +1,98 @@
+Description
+This use case outlines the seamless registration process for hiring managers on AIRecruitHub using Firebase’s authentication and security services. It ensures a smooth onboarding experience, integrating Firebase Authentication, Firestore for data storage, Firebase Functions for business logic, and Firebase Email Services for confirmation notifications. AIRecruitHub is using the Firebase Emulator Suite for development.
+Actors
+Primary Actor: Hiring Manager (Employer)
+Secondary Actors: AIRecruitHub platform, Firebase Authentication, Firebase Firestore, Firebase Functions, Firebase Email Services
+
+Preconditions
+
+The hiring manager visits the AIRecruitHub platform and chooses to sign up.
+The AIRecruitHub platform integrates Firebase Authentication to handle authentication.
+The Firebase Emulator Suite is configured for local development.
+The system is compliant with GDPR and CCPA for user data protection.
+Postconditions
+The hiring manager is successfully registered with AIRecruitHub.
+A confirmation email is sent upon successful registration.
+The user is automatically redirected to a setup wizard.
+Multi-factor authentication (MFA) is available for enhanced security.
+The system logs sign-up activity for tracking and analytics.
+Main Flow
+Step Actor Action
+1 Hiring Manager Navigates to the AIRecruitHub registration page.
+2 AIRecruitHub Platform Displays a registration form with email, Google, and LinkedIn authentication options.
+3 Hiring Manager Chooses authentication method (Email, Google, or LinkedIn).
+4 Firebase Authentication Handles user authentication and validation.
+5 Hiring Manager Fills in required fields (Company Name, Role, Hiring Needs).
+6 AIRecruitHub Platform Validates the input fields and prompts corrections if necessary.
+7 Firebase Firestore Stores the new user’s data.
+8 Firebase Functions Triggers a confirmation email upon successful registration.
+9 Firebase Email Services Sends a confirmation email with a verification link.
+10 Hiring Manager Clicks the email verification link to confirm the account.
+11 AIRecruitHub Platform Redirects the user to the setup wizard for configuration.
+12 Firebase Analytics Logs sign-up completion for tracking.
+
+Alternate Flows
+Alternate Flow 1: User Cancels Registration
+Step Actor Action
+1 Hiring Manager Navigates to the registration page but does not complete the form.
+2 AIRecruitHub Platform Saves progress (if any) using Firestore for a seamless experience upon return.
+
+Alternate Flow 2: Authentication Failure
+Step Actor Action
+1 Hiring Manager Attempts to register using an incorrect password or credentials.
+2 Firebase Authentication Rejects the request and provides an error message.
+3 AIRecruitHub Platform Displays an error message and suggests corrections.
+
+Alternate Flow 3: Email Already in Use
+Step Actor Action
+1 Hiring Manager Attempts to register with an email already in use.
+2 Firebase Authentication Rejects the request and notifies the user.
+3 AIRecruitHub Platform Offers an option to log in or reset the password.
+
+Exceptions
+Exception 1: Firebase Services Unavailable
+Step Actor Action
+1 AIRecruitHub Platform Fails to connect to Firebase Authentication due to an outage.
+2 AIRecruitHub Platform Displays an error message and suggests retrying later.
+Exception 2: Confirmation Email Not Received
+Step Actor Action
+1 Hiring Manager Does not receive a confirmation email.
+2 AIRecruitHub Platform Offers an option to resend the email.
+
+Assumptions
+
+The hiring manager has a valid email address or a Google/LinkedIn account.
+The Firebase Emulator Suite is correctly set up for local development.
+The AIRecruitHub platform follows best security practices for authentication and data storage.
+Notes
+• Firebase Firestore will be used to store user registration data.
+• Firebase Authentication will handle email, Google, and LinkedIn authentication.
+• Firebase Functions will automate confirmation email triggers.
+• Firebase Analytics will track user sign-up completion rates for optimization.
+• The system ensures GDPR and CCPA compliance by providing clear data retention policies and account deletion options.
+Integration with Firebase
+
+Firebase Authentication
+o Supports sign-in with email, Google, and LinkedIn.
+o Provides Multi-Factor Authentication (MFA) for enhanced security.
+Firebase Firestore
+o Stores user profile data such as company name, role, and hiring needs.
+o Tracks user sign-up progress for a seamless experience.
+Firebase Functions
+o Automates email confirmation triggers.
+o Handles event-driven actions such as account verification and MFA activation.
+Firebase Email Services
+o Sends automated emails for account confirmation and password recovery.
+Firebase Emulator Suite
+o Used for local testing of authentication, database, and email services.
+Firebase Analytics
+o Tracks registration completion rates.
+o Provides insights into user behavior during onboarding.
+Final Deliverables
+
+Functional Registration Page with Firebase Authentication.
+Seamless Multi-Factor Authentication (MFA) Setup for enhanced security.
+Automated Email Confirmation Workflow using Firebase Functions.
+Setup Wizard Redirection for first-time user configuration.
+Performance Analytics Dashboard using Firebase Analytics.
+This use case ensures that hiring managers experience a frictionless onboarding process while Firebase handles authentication, security, and workflow automation efficiently.

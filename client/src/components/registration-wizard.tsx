@@ -10,6 +10,10 @@ import { Building2, Users } from "lucide-react";
 import { insertUserSchema } from "@shared/schema";
 import type { User } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { db } from "@/lib/firebase";
+import { doc, setDoc } from "firebase/firestore";
+import { Progress } from "@/components/ui/progress";
 
 interface RegistrationWizardProps {
   firebaseUid: string;
@@ -19,7 +23,9 @@ interface RegistrationWizardProps {
 
 export function RegistrationWizard({ firebaseUid, email, onComplete }: RegistrationWizardProps) {
   const [step, setStep] = useState(1);
-  
+  const [progress, setProgress] = useState(33);
+  const { toast } = useToast();
+
   const form = useForm({
     resolver: zodResolver(insertUserSchema),
     defaultValues: {
@@ -32,6 +38,19 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
     }
   });
 
+  const saveProgress = async (data: any) => {
+    try {
+      // Save progress to Firestore
+      await setDoc(doc(db, "registrationProgress", firebaseUid), {
+        ...data,
+        lastStep: step,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Error saving progress:", error);
+    }
+  };
+
   const onSubmit = async (data: any) => {
     try {
       const response = await apiRequest("POST", "/api/auth/register", {
@@ -39,16 +58,26 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
         firebaseUid
       });
       const user = await response.json();
+
+      // Clear saved progress after successful registration
+      await setDoc(doc(db, "registrationProgress", firebaseUid), { completed: true });
+
       onComplete(user);
     } catch (error: any) {
       console.error("Registration error:", error);
+      toast({
+        title: "Registration Error",
+        description: error.message,
+        variant: "destructive"
+      });
     }
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle>Complete Your Profile</CardTitle>
+        <Progress value={progress} className="mt-2" />
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -68,7 +97,7 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="company"
@@ -97,13 +126,18 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
                   )}
                 />
 
-                <Button 
-                  type="button" 
-                  className="w-full"
-                  onClick={() => setStep(2)}
-                >
-                  Next
-                </Button>
+                <div className="flex justify-end mt-6">
+                  <Button 
+                    type="button" 
+                    onClick={() => {
+                      saveProgress(form.getValues());
+                      setStep(2);
+                      setProgress(66);
+                    }}
+                  >
+                    Next
+                  </Button>
+                </div>
               </>
             )}
 
@@ -127,16 +161,63 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
                   )}
                 />
 
-                <div className="flex gap-4">
+                <div className="flex gap-4 justify-end mt-6">
                   <Button 
                     type="button" 
                     variant="outline"
-                    className="w-full"
-                    onClick={() => setStep(1)}
+                    onClick={() => {
+                      setStep(1);
+                      setProgress(33);
+                    }}
                   >
                     Back
                   </Button>
-                  <Button type="submit" className="w-full">
+                  <Button 
+                    type="button"
+                    onClick={() => {
+                      saveProgress(form.getValues());
+                      setStep(3);
+                      setProgress(100);
+                    }}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </>
+            )}
+
+            {step === 3 && (
+              <>
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Review Your Information</h3>
+                  <div className="space-y-2">
+                    <p><strong>Name:</strong> {form.getValues("name")}</p>
+                    <p><strong>Company:</strong> {form.getValues("company")}</p>
+                    <p><strong>Title:</strong> {form.getValues("title")}</p>
+                    <p><strong>Hiring Needs:</strong></p>
+                    <p className="whitespace-pre-wrap">{form.getValues("bio")}</p>
+                  </div>
+
+                  <div className="pt-4">
+                    <p className="text-sm text-muted-foreground">
+                      By completing registration, you agree to our Terms of Service and Privacy Policy.
+                      Your data will be handled in accordance with GDPR and CCPA guidelines.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-4 justify-end mt-6">
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    onClick={() => {
+                      setStep(2);
+                      setProgress(66);
+                    }}
+                  >
+                    Back
+                  </Button>
+                  <Button type="submit">
                     Complete Registration
                   </Button>
                 </div>

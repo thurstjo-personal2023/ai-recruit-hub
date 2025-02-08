@@ -7,17 +7,27 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { insertUserSchema } from "@shared/schema";
 import { auth } from "@/lib/firebase";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendEmailVerification } from "firebase/auth";
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  sendEmailVerification,
+  OAuthProvider 
+} from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { SiGoogle, SiLinkedin } from "react-icons/si";
 import { Separator } from "@/components/ui/separator";
 import { RegistrationWizard } from "@/components/registration-wizard";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ExclamationTriangleIcon } from "@radix-ui/react-icons";
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
   const [authData, setAuthData] = useState<{ uid: string; email: string } | null>(null);
+  const [resendTimer, setResendTimer] = useState(0);
   const { toast } = useToast();
 
   const form = useForm({
@@ -33,29 +43,37 @@ export default function Auth() {
     }
   });
 
-  const handleGoogleSignIn = async () => {
+  const handleSocialSignIn = async (provider: GoogleAuthProvider | OAuthProvider) => {
     try {
-      const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const { user } = result;
 
-      // Check if user exists in our database
       try {
         await apiRequest("GET", "/api/auth/me");
         window.location.href = "/jobs";
       } catch (error) {
-        // User doesn't exist in our database, show registration wizard
         setAuthData({ uid: user.uid, email: user.email! });
         setShowWizard(true);
       }
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
+      if (error.code === 'auth/popup-blocked') {
+        toast({
+          title: "Popup Blocked",
+          description: "Please allow popups for this site to continue with social sign-in.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive"
+        });
+      }
     }
   };
+
+  const handleGoogleSignIn = () => handleSocialSignIn(new GoogleAuthProvider());
+  const handleLinkedInSignIn = () => handleSocialSignIn(new OAuthProvider('linkedin.com'));
 
   const handleEmailSignIn = async (data: any) => {
     try {
@@ -73,6 +91,46 @@ export default function Auth() {
         });
       }
     } catch (error: any) {
+      if (error.code === 'auth/email-already-in-use') {
+        toast({
+          title: "Email Already Registered",
+          description: "Would you like to sign in instead?",
+          action: <Button variant="link" onClick={() => setIsLogin(true)}>Sign In</Button>
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!authData) return;
+
+    try {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        await sendEmailVerification(currentUser);
+        setResendTimer(60);
+        const interval = setInterval(() => {
+          setResendTimer((prev) => {
+            if (prev <= 1) {
+              clearInterval(interval);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+
+        toast({
+          title: "Verification Email Resent",
+          description: "Please check your email for the verification link."
+        });
+      }
+    } catch (error: any) {
       toast({
         title: "Error",
         description: error.message,
@@ -87,11 +145,32 @@ export default function Auth() {
 
   if (showWizard && authData) {
     return (
-      <RegistrationWizard
-        firebaseUid={authData.uid}
-        email={authData.email}
-        onComplete={handleWizardComplete}
-      />
+      <div className="container mx-auto px-4 py-8">
+        {auth.currentUser && !auth.currentUser.emailVerified && (
+          <Alert variant="warning" className="mb-6">
+            <ExclamationTriangleIcon className="h-4 w-4" />
+            <AlertDescription>
+              Please verify your email to complete registration.
+              {resendTimer > 0 ? (
+                <span className="ml-2">Resend available in {resendTimer}s</span>
+              ) : (
+                <Button 
+                  variant="link" 
+                  className="ml-2 p-0 h-auto" 
+                  onClick={handleResendVerification}
+                >
+                  Resend verification email
+                </Button>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+        <RegistrationWizard
+          firebaseUid={authData.uid}
+          email={authData.email}
+          onComplete={handleWizardComplete}
+        />
+      </div>
     );
   }
 
@@ -110,6 +189,15 @@ export default function Auth() {
             >
               <SiGoogle className="mr-2 h-4 w-4" />
               Continue with Google
+            </Button>
+
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={handleLinkedInSignIn}
+            >
+              <SiLinkedin className="mr-2 h-4 w-4" />
+              Continue with LinkedIn
             </Button>
 
             <div className="relative">
