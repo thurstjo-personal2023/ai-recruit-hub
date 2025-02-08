@@ -18,27 +18,29 @@ export function Navbar() {
   return (
     <nav className="border-b bg-background">
       <div className="container mx-auto px-4">
-        <div className="flex justify-between items-center h-16">
-          <div className="flex-shrink-0">
+        <div className="flex h-16">
+          <div className="flex-none mr-auto flex items-center">
             <Link href="/">
-              <img 
-                src="/AIRecruitHub-Logo_v2_1.png" 
-                alt="AIRecruitHub Logo" 
-                className="h-8 w-auto object-contain"
-              />
-              <span className="ml-2 text-2xl font-bold bg-gradient-to-r from-[#0057B8] to-[#00C0F1] bg-clip-text text-transparent">
-                AIRecruitHub
-              </span>
+              <div className="flex items-center">
+                <img 
+                  src="/AIRecruitHub-Logo_v2_1.png" 
+                  alt="AIRecruitHub Logo" 
+                  className="h-8 w-auto"
+                />
+                <span className="ml-2 text-2xl font-bold bg-gradient-to-r from-[#0057B8] to-[#00C0F1] bg-clip-text text-transparent">
+                  AIRecruitHub
+                </span>
+              </div>
             </Link>
           </div>
 
           <div className="flex items-center gap-6">
             {user ? (
               <>
-                <Link href="/jobs">
+                <Link href="/jobs" className="hover:text-[#00C0F1] transition-colors">
                   Jobs
                 </Link>
-                <Link href="/profile">
+                <Link href="/profile" className="hover:text-[#00C0F1] transition-colors">
                   Profile
                 </Link>
                 <Button 
