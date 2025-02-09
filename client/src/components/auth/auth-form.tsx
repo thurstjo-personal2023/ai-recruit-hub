@@ -13,22 +13,43 @@ import { apiRequest } from "@/lib/queryClient";
 type FormData = {
   email: string;
   password: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   role: "employer" | "candidate";
-  company?: string;
+  jobTitle: string;
+  industryExpertise: string[];
+  recruitmentSpecialization: string[];
+  hiringChallenges: string[];
+  preferredCommunication: "email" | "sms" | "in_platform";
+  notificationPreferences: {
+    jobMatches: boolean;
+    aiInsights: boolean;
+    candidateUpdates: boolean;
+  };
 };
 
 export function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
   const { toast } = useToast();
-  
+
   const form = useForm<FormData>({
     resolver: zodResolver(insertUserSchema),
     defaultValues: {
       email: "",
       password: "",
-      name: "",
+      firstName: "",
+      lastName: "",
       role: "candidate",
+      jobTitle: "",
+      industryExpertise: ["Technology"],
+      recruitmentSpecialization: ["Software Engineering"],
+      hiringChallenges: [],
+      preferredCommunication: "email",
+      notificationPreferences: {
+        jobMatches: true,
+        aiInsights: true,
+        candidateUpdates: true
+      }
     },
   });
 
@@ -38,9 +59,14 @@ export function AuthForm() {
         await login(data.email, data.password);
       } else {
         const credentials = await register(data.email, data.password);
+        // Register user in our backend
         await apiRequest("POST", "/api/auth/register", {
           ...data,
           uid: credentials.user.uid,
+        });
+        toast({
+          title: "Success",
+          description: "Account created successfully!",
         });
       }
       window.location.href = "/dashboard";
@@ -91,10 +117,36 @@ export function AuthForm() {
               <>
                 <FormField
                   control={form.control}
-                  name="name"
+                  name="firstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Name</FormLabel>
+                      <FormLabel>First Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="lastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Last Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="jobTitle"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Job Title</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -124,7 +176,7 @@ export function AuthForm() {
               </>
             )}
             <Button type="submit" className="w-full">
-              {isLogin ? "Login" : "Register"}
+              {isLogin ? "Login" : "Create Account"}
             </Button>
             <Button
               type="button"
