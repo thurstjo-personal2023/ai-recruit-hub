@@ -10,67 +10,46 @@ import { useToast } from "@/hooks/use-toast";
 import { register, login } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 
+type FormData = {
+  email: string;
+  password: string;
+  name: string;
+  role: "employer" | "candidate";
+  company?: string;
+};
+
 export function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-
-  const form = useForm({
+  
+  const form = useForm<FormData>({
     resolver: zodResolver(insertUserSchema),
     defaultValues: {
       email: "",
       password: "",
-      firstName: "",
-      lastName: "",
-      role: "employer",
-      jobTitle: "",
-      industryExpertise: ["Technology"],
-      recruitmentSpecialization: ["Software Engineering"],
-      hiringChallenges: [],
-      preferredCommunication: "email",
-      notificationPreferences: {
-        jobMatches: true,
-        aiInsights: true,
-        candidateUpdates: true
-      }
+      name: "",
+      role: "candidate",
     },
   });
 
-  async function onSubmit(data: any) {
+  async function onSubmit(data: FormData) {
     try {
-      setIsLoading(true);
-      console.log("Form submission started:", isLogin ? "login" : "register");
-
       if (isLogin) {
-        const result = await login(data.email, data.password);
-        console.log("Login successful:", result.user.uid);
+        await login(data.email, data.password);
       } else {
-        console.log("Starting registration process");
         const credentials = await register(data.email, data.password);
-        console.log("Firebase registration successful:", credentials.user.uid);
-
-        // Register user in our backend
-        const response = await apiRequest("POST", "/api/auth/register", {
+        await apiRequest("POST", "/api/auth/register", {
           ...data,
           uid: credentials.user.uid,
-        });
-        console.log("Backend registration successful:", response);
-
-        toast({
-          title: "Success",
-          description: "Account created successfully!",
         });
       }
       window.location.href = "/dashboard";
     } catch (error) {
-      console.error("Auth error:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Authentication failed",
+        description: (error as Error).message,
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   }
 
@@ -112,36 +91,10 @@ export function AuthForm() {
               <>
                 <FormField
                   control={form.control}
-                  name="firstName"
+                  name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>First Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="lastName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Last Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="jobTitle"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Job Title</FormLabel>
+                      <FormLabel>Name</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -170,15 +123,14 @@ export function AuthForm() {
                 />
               </>
             )}
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Please wait..." : isLogin ? "Login" : "Create Account"}
+            <Button type="submit" className="w-full">
+              {isLogin ? "Login" : "Register"}
             </Button>
             <Button
               type="button"
               variant="link"
               className="w-full"
               onClick={() => setIsLogin(!isLogin)}
-              disabled={isLoading}
             >
               {isLogin ? "Need an account?" : "Already have an account?"}
             </Button>
