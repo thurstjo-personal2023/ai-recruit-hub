@@ -1,29 +1,55 @@
-import type { User, InsertUser, Job, InsertJob, Application, InsertApplication } from "@shared/schema";
+import type { User, InsertUser, Company, InsertCompany, Job, InsertJob, Application, InsertApplication } from "@shared/schema";
 
 export interface IStorage {
+  // User methods
   getUser(id: number): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+
+  // Company methods  
+  getCompany(id: number): Promise<Company | undefined>;
+  createCompany(company: InsertCompany): Promise<Company>;
+  getCompanyByUserId(userId: number): Promise<Company | undefined>;
+
+  // Job methods
   getJobs(): Promise<Job[]>;
+  getJob(id: number): Promise<Job | undefined>;
   getJobsByEmployer(employerId: number): Promise<Job[]>;
   createJob(job: InsertJob): Promise<Job>;
-  getApplicationsByCandidate(candidateId: number): Promise<(Application & { job: Job })[]>;
+
+  // Application methods
+  getApplication(id: number): Promise<Application | undefined>;
+  getApplicationsByCandidate(candidateId: number): Promise<Application[]>;
+  getApplicationsByJob(jobId: number): Promise<Application[]>;
   createApplication(application: InsertApplication): Promise<Application>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
+  private companies: Map<number, Company>;
   private jobs: Map<number, Job>;
   private applications: Map<number, Application>;
-  private currentId: { users: number; jobs: number; applications: number };
+  private currentId: { 
+    users: number; 
+    companies: number;
+    jobs: number;
+    applications: number;
+  };
 
   constructor() {
     this.users = new Map();
+    this.companies = new Map();
     this.jobs = new Map();
     this.applications = new Map();
-    this.currentId = { users: 1, jobs: 1, applications: 1 };
+    this.currentId = { 
+      users: 1, 
+      companies: 1,
+      jobs: 1,
+      applications: 1
+    };
   }
 
+  // Existing user methods...
   async getUser(id: number): Promise<User | undefined> {
     return this.users.get(id);
   }
@@ -47,13 +73,40 @@ export class MemStorage implements IStorage {
     return user;
   }
 
+  // Company methods
+  async getCompany(id: number): Promise<Company | undefined> {
+    return this.companies.get(id);
+  }
+
+  async createCompany(insertCompany: InsertCompany): Promise<Company> {
+    const id = this.currentId.companies++;
+    const company: Company = {
+      ...insertCompany,
+      id,
+      createdAt: new Date()
+    };
+    this.companies.set(id, company);
+    return company;
+  }
+
+  async getCompanyByUserId(userId: number): Promise<Company | undefined> {
+    return Array.from(this.companies.values()).find(
+      (company) => company.userId === userId
+    );
+  }
+
+  // Job methods
   async getJobs(): Promise<Job[]> {
     return Array.from(this.jobs.values());
   }
 
+  async getJob(id: number): Promise<Job | undefined> {
+    return this.jobs.get(id);
+  }
+
   async getJobsByEmployer(employerId: number): Promise<Job[]> {
     return Array.from(this.jobs.values()).filter(
-      (job) => job.employerId === employerId,
+      (job) => job.employerId === employerId
     );
   }
 
@@ -62,21 +115,28 @@ export class MemStorage implements IStorage {
     const job: Job = {
       ...insertJob,
       id,
-      status: "open",
-      createdAt: new Date(),
-      aiScore: { score: Math.floor(Math.random() * 100) }
+      status: "draft",
+      createdAt: new Date()
     };
     this.jobs.set(id, job);
     return job;
   }
 
-  async getApplicationsByCandidate(candidateId: number): Promise<(Application & { job: Job })[]> {
-    return Array.from(this.applications.values())
-      .filter((app) => app.candidateId === candidateId)
-      .map((app) => ({
-        ...app,
-        job: this.jobs.get(app.jobId)!
-      }));
+  // Application methods
+  async getApplication(id: number): Promise<Application | undefined> {
+    return this.applications.get(id);
+  }
+
+  async getApplicationsByCandidate(candidateId: number): Promise<Application[]> {
+    return Array.from(this.applications.values()).filter(
+      (app) => app.candidateId === candidateId
+    );
+  }
+
+  async getApplicationsByJob(jobId: number): Promise<Application[]> {
+    return Array.from(this.applications.values()).filter(
+      (app) => app.jobId === jobId
+    );
   }
 
   async createApplication(insertApplication: InsertApplication): Promise<Application> {
@@ -85,8 +145,10 @@ export class MemStorage implements IStorage {
       ...insertApplication,
       id,
       status: "pending",
+      aiMatchScore: null,
+      aiInsights: null,
       createdAt: new Date(),
-      aiMatch: { score: Math.floor(Math.random() * 100) }
+      updatedAt: new Date()
     };
     this.applications.set(id, application);
     return application;

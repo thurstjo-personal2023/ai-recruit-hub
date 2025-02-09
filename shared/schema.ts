@@ -1,11 +1,10 @@
-import { pgTable, text, serial, timestamp, boolean, jsonb, integer, array } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, boolean, jsonb, integer, PgArray } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
-  password: text("password").notNull(),
   role: text("role", { enum: ["employer", "candidate"] }).notNull(),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
@@ -53,7 +52,45 @@ export const companies = pgTable("companies", {
   userId: integer("user_id").notNull()
 });
 
-// Handle optional and array fields in user schema
+export const jobs = pgTable("jobs", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  companyId: integer("company_id").notNull(),
+  employerId: integer("employer_id").notNull(),
+  location: text("location").notNull(),
+  type: text("type", { 
+    enum: ["full_time", "part_time", "contract", "remote"] 
+  }).notNull(),
+  status: text("status", {
+    enum: ["draft", "published", "closed"]
+  }).notNull().default("draft"),
+  requiredSkills: text("required_skills").array(),
+  requiredExperience: integer("required_experience"),
+  salaryRangeMin: integer("salary_range_min"),
+  salaryRangeMax: integer("salary_range_max"),
+  benefits: text("benefits").array(),
+  aiJobDescription: boolean("ai_job_description").default(true),
+  aiPersonaGenerated: boolean("ai_persona_generated").default(true),
+  languageRequirements: text("language_requirements").array(),
+  createdAt: timestamp("created_at").notNull().defaultNow()
+});
+
+export const applications = pgTable("applications", {
+  id: serial("id").primaryKey(),
+  jobId: integer("job_id").notNull(),
+  candidateId: integer("candidate_id").notNull(),
+  status: text("status", {
+    enum: ["pending", "reviewed", "shortlisted", "rejected", "hired"]
+  }).notNull().default("pending"),
+  coverLetter: text("cover_letter"),
+  resume: text("resume").notNull(),
+  aiMatchScore: integer("ai_match_score"),
+  aiInsights: jsonb("ai_insights"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at")
+});
+
 export const insertUserSchema = createInsertSchema(users, {
   industryExpertise: z.array(z.string()).min(1, "Select at least one industry"),
   recruitmentSpecialization: z.array(z.string()).min(1, "Select at least one specialization"),
@@ -92,7 +129,36 @@ export const insertCompanySchema = createInsertSchema(companies, {
   userId: true
 });
 
+export const insertJobSchema = createInsertSchema(jobs, {
+  requiredSkills: z.array(z.string()),
+  benefits: z.array(z.string()),
+  languageRequirements: z.array(z.string()),
+  salaryRangeMin: z.number().optional(),
+  salaryRangeMax: z.number().optional(),
+  requiredExperience: z.number().optional()
+}).omit({ 
+  id: true,
+  createdAt: true,
+  status: true
+});
+
+export const insertApplicationSchema = createInsertSchema(applications, {
+  coverLetter: z.string().optional(),
+  resume: z.string().url("Invalid resume URL")
+}).omit({ 
+  id: true, 
+  createdAt: true,
+  updatedAt: true,
+  status: true,
+  aiMatchScore: true,
+  aiInsights: true
+});
+
 export type User = typeof users.$inferSelect;
 export type Company = typeof companies.$inferSelect;
+export type Job = typeof jobs.$inferSelect;
+export type Application = typeof applications.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertCompany = z.infer<typeof insertCompanySchema>;
+export type InsertJob = z.infer<typeof insertJobSchema>;
+export type InsertApplication = z.infer<typeof insertApplicationSchema>;
