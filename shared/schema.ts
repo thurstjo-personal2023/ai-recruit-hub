@@ -2,16 +2,52 @@ import { pgTable, text, serial, timestamp, boolean, jsonb, integer } from "drizz
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Enums for job titles and communication preferences
+export const JobTitle = {
+  TALENT_ACQUISITION_MANAGER: "Talent Acquisition Manager",
+  HR_DIRECTOR: "HR Director",
+  CEO: "CEO",
+  OTHER: "Other"
+} as const;
+
+export const CommunicationPreference = {
+  EMAIL: "email",
+  SMS: "sms",
+  PLATFORM: "platform"
+} as const;
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   role: text("role", { enum: ["employer", "candidate"] }).notNull(),
-  name: text("name").notNull(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  phoneNumber: text("phone_number"),
+  jobTitle: text("job_title", { 
+    enum: Object.values(JobTitle) 
+  }),
+  linkedinUrl: text("linkedin_url"),
+  profilePicture: text("profile_picture"),
+  communicationPreference: text("communication_preference", { 
+    enum: Object.values(CommunicationPreference) 
+  }).notNull().default("email"),
   company: text("company"),
-  title: text("title"),
   bio: text("bio")
 });
+
+// Properly handle optional fields in user schema
+export const insertUserSchema = createInsertSchema(users, {
+  linkedinUrl: z.string().url("Invalid LinkedIn URL").optional().nullable(),
+  phoneNumber: z.string().regex(/^\+[1-9]\d{1,14}$/, "Invalid phone number format").optional().nullable(),
+  profilePicture: z.string().url("Invalid profile picture URL").optional().nullable(),
+  company: z.string().nullable().optional(),
+  bio: z.string().nullable().optional(),
+  jobTitle: z.enum(Object.values(JobTitle) as [string, ...string[]]).optional(),
+  communicationPreference: z.enum(Object.values(CommunicationPreference) as [string, ...string[]]),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+}).omit({ id: true });
 
 export const jobs = pgTable("jobs", {
   id: serial("id").primaryKey(),
@@ -34,13 +70,6 @@ export const applications = pgTable("applications", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   aiMatch: jsonb("ai_match")
 });
-
-// Properly handle optional fields in user schema
-export const insertUserSchema = createInsertSchema(users, {
-  company: z.string().nullable().optional(),
-  title: z.string().nullable().optional(),
-  bio: z.string().nullable().optional()
-}).omit({ id: true });
 
 export const insertJobSchema = createInsertSchema(jobs).omit({ 
   id: true, 
