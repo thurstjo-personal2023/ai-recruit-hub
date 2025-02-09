@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -9,8 +9,6 @@ import { insertUserSchema, JobTitle, CommunicationPreference } from "@shared/sch
 import { auth, storage } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -20,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Upload, Trash2 } from "lucide-react";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 
@@ -32,7 +31,6 @@ interface RegistrationWizardProps {
 export function RegistrationWizard({ firebaseUid, email, onComplete }: RegistrationWizardProps) {
   const [step, setStep] = useState(1);
   const [progress, setProgress] = useState(25);
-  const [enableMfa, setEnableMfa] = useState(false);
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
   const [profilePictureUrl, setProfilePictureUrl] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -322,10 +320,7 @@ export function RegistrationWizard({ firebaseUid, email, onComplete }: Registrat
                     <p><strong>Job Title:</strong> {form.getValues("jobTitle")}</p>
                     <p><strong>LinkedIn:</strong> {form.getValues("linkedinUrl")}</p>
                     <p><strong>Communication Preference:</strong> {form.getValues("communicationPreference")}</p>
-                    <p><strong>Company:</strong> {form.getValues("company")}</p>
-                    <p><strong>Bio:</strong> {form.getValues("bio")}</p>
                     {profilePictureUrl && <p><strong>Profile Picture:</strong> <img src={profilePictureUrl} alt="Profile Picture" className="w-16 h-16 rounded-full object-cover"/></p>}
-
                   </div>
 
                   <div className="pt-4">
